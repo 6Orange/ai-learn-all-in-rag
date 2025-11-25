@@ -1,4 +1,5 @@
 import os
+import re
 # hugging face镜像设置，如果国内环境无法使用启用该设置
 # os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
 from dotenv import load_dotenv
@@ -7,7 +8,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_deepseek import ChatDeepSeek
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 load_dotenv()
 
@@ -46,11 +47,11 @@ prompt = ChatPromptTemplate.from_template("""请根据下面提供的上下文�
                                           )
 
 # 配置大语言模型
-llm = ChatDeepSeek(
-    model="deepseek-chat",
+llm = ChatGoogleGenerativeAI(
+    model="models/gemini-2.5-flash",  
     temperature=0.7,
     max_tokens=4096,
-    api_key=os.getenv("DEEPSEEK_API_KEY")
+    google_api_key=os.getenv("GOOGLE_API_KEY")
 )
 
 # 用户查询
@@ -61,4 +62,5 @@ retrieved_docs = vectorstore.similarity_search(question, k=3)
 docs_content = "\n\n".join(doc.page_content for doc in retrieved_docs)
 
 answer = llm.invoke(prompt.format(question=question, context=docs_content))
-print(answer)
+match = re.search(r"content\s*=\s*'([^']*)'", answer.content)
+print(match.group(1) if match else answer)
