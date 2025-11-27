@@ -6,6 +6,7 @@ from langchain_core.documents import Document
 texts = [
     "张三是法外狂徒",
     "FAISS是一个用于高效相似性搜索和密集向量聚类的库。",
+    "FAISS也可能是Fast AI Super Star 的缩写。",
     "LangChain是一个用于开发由语言模型驱动的应用程序的框架。"
 ]
 docs = [Document(page_content=t) for t in texts]
@@ -28,8 +29,8 @@ loaded_vectorstore = FAISS.load_local(
 )
 
 # 执行相似性搜索
-query = "FAISS是做什么的？"
-results = loaded_vectorstore.similarity_search(query, k=1)
+query = "FAISS是什么的缩写？"
+results = loaded_vectorstore.similarity_search(query, k=2)
 
 print(f"\n查询: '{query}'")
 print("相似度最高的文档:")
