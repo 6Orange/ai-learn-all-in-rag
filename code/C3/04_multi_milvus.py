@@ -31,6 +31,10 @@ class Encoder:
         with torch.no_grad():
             query_emb = self.model.encode(image=image_path)
         return query_emb.tolist()[0]
+    def encode_text(self, text: str) -> list[float]:
+        with torch.no_grad():
+            query_emb = self.model.encode(text=text)
+        return query_emb.tolist()[0]
 
 def visualize_results(query_image_path: str, retrieved_images: list, img_height: int = 300, img_width: int = 300, row_count: int = 3) -> np.ndarray:
     """从检索到的图像列表创建一个全景图用于可视化。"""
@@ -83,6 +87,7 @@ fields = [
     FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
     FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=dim),
     FieldSchema(name="image_path", dtype=DataType.VARCHAR, max_length=512),
+    FieldSchema(name="description", dtype=DataType.VARCHAR, max_length=512),
 ]
 
 # 创建集合 Schema
@@ -101,7 +106,11 @@ print(f"\n--> 正在向 '{COLLECTION_NAME}' 插入数据")
 data_to_insert = []
 for image_path in tqdm(image_list, desc="生成图像嵌入"):
     vector = encoder.encode_image(image_path)
-    data_to_insert.append({"vector": vector, "image_path": image_path})
+    print(image_path)
+    if "cute" in image_path:
+        data_to_insert.append({"vector": vector, "image_path": image_path, "description": "A cute dragon image"})
+    else:
+        data_to_insert.append({"vector": vector, "image_path": image_path, "description": "A dragon image"})
 
 if data_to_insert:
     result = milvus_client.insert(collection_name=COLLECTION_NAME, data=data_to_insert)
@@ -126,13 +135,14 @@ print("已加载 Collection 到内存中。")
 # 7. 执行多模态检索
 print(f"\n--> 正在 '{COLLECTION_NAME}' 中执行检索")
 query_image_path = os.path.join(DATA_DIR, "dragon", "query.png")
-query_text = "一条龙"
-query_vector = encoder.encode_query(image_path=query_image_path, text=query_text)
+query_text = "cute"
+# query_vector = encoder.encode_query(image_path=query_image_path, text=query_text)
+query_vector = encoder.encode_text(query_text)
 
 search_results = milvus_client.search(
     collection_name=COLLECTION_NAME,
     data=[query_vector],
-    output_fields=["image_path"],
+    output_fields=["image_path", "description"],
     limit=5,
     search_params={"metric_type": "COSINE", "params": {"ef": 128}}
 )[0]
@@ -140,7 +150,7 @@ search_results = milvus_client.search(
 retrieved_images = []
 print("检索结果:")
 for i, hit in enumerate(search_results):
-    print(f"  Top {i+1}: ID={hit['id']}, 距离={hit['distance']:.4f}, 路径='{hit['entity']['image_path']}'")
+    print(f"  Top {i+1}: ID={hit['id']}, 距离={hit['distance']:.4f}, 路径='{hit['entity']['image_path']}'，描述='{hit['entity']['description']}'")
     retrieved_images.append(hit['entity']['image_path'])
 
 # 8. 可视化与清理
